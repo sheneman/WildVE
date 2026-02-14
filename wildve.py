@@ -674,12 +674,12 @@ def main():
 		sys.exit(-1)
 
 	print('''
-	╔══════════════════════════════════════════════╗
-	║                                              ║
-	║   WildVE: Wildlife Video Extractor           ║
-	║   Ensemble AI Wildlife Detection             ║
-	║                                              ║
-	╚══════════════════════════════════════════════╝
+	 __        __ _  _      _ __     __ _____
+	 \ \      / /(_)| |  __| |\ \   / /| ____|
+	  \ \ /\ / / | || | / _` | \ \ / / |  _|
+	   \ V  V /  | || || (_| |  \ V /  | |___
+	    \_/\_/   |_||_| \__,_|   \_/   |_____|
+	     W i l d l i f e   V i d e o   E x t r a c t o r
 	''', flush=True)
 
 	print("            BEGINNING PROCESSING          ")

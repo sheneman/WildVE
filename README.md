@@ -1,5 +1,14 @@
 # WildVE: Wildlife Video Extractor
 
+```
+ __        __ _  _      _ __     __ _____
+ \ \      / /(_)| |  __| |\ \   / /| ____|
+  \ \ /\ / / | || | / _` | \ \ / / |  _|
+   \ V  V /  | || || (_| |  \ V /  | |___
+    \_/\_/   |_||_| \__,_|   \_/   |_____|
+     W i l d l i f e   V i d e o   E x t r a c t o r
+```
+
 WildVE scans directories of video files for wildlife using an ensemble of AI models, automatically extracting clips containing detected animals and generating summary reports.
 
 ## Ensemble Model Approach
