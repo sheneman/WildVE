@@ -31,6 +31,8 @@ A frame is flagged as a positive detection when **2 or more** models agree, redu
 ```bash
 git clone https://github.com/sheneman/wildve.git
 cd wildve
+python -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 ```
 
