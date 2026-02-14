@@ -24,7 +24,9 @@ WildVE uses six AI models in an ensemble to maximize detection accuracy and mini
 | **Florence-2** | Vision-Language | Microsoft's multimodal model for open-vocabulary object detection |
 | **CLIP** | Vision-Language | OpenAI's contrastive model for zero-shot image classification |
 
-A frame is flagged as a positive detection when **2 or more** models agree, reducing false positives while maintaining high recall. Overall confidence is computed as a weighted average adjusted by the fraction of agreeing models.
+A frame is flagged as a positive detection when **2 or more** models agree (configurable via `--threshold`), reducing false positives while maintaining high recall. Overall confidence is computed as the average confidence of the agreeing models.
+
+By default, the tiger/EnlightenGAN model is excluded from the ensemble. Use `--all-models` to include it, or `--models` to select specific models.
 
 ## Installation
 
@@ -62,6 +64,9 @@ python wildve.py <INPUT_DIR> <OUTPUT_DIR> [options]
 | `-l`, `--logging` | Directory for telemetry log files | `logs` |
 | `-n`, `--nobar` | Disable progress bar | `False` |
 | `--allframes` | Analyze every frame and output a detailed per-frame CSV report instead of extracting clips | `False` |
+| `--models` | Comma-separated list of models to use (options: `md5,md6v9,md6v10,tiger,florence,clip`) | `md5,md6v9,md6v10,florence,clip` |
+| `--all-models` | Use all models including the tiger/EnlightenGAN model | `False` |
+| `--threshold` | Minimum number of models that must agree for a positive detection | `2` |
 | `-g`, `--gpu` | Use GPU if available (default) | `True` |
 | `-c`, `--cpu` | Force CPU-only mode | `False` |
 
@@ -82,6 +87,12 @@ python wildve.py videos/ clips/ --nobar
 
 # Analyze every frame (no clip extraction, detailed CSV report)
 python wildve.py videos/ results/ --allframes
+
+# Use only MegaDetector models with threshold of 1
+python wildve.py videos/ clips/ --models md5,md6v9,md6v10 --threshold 1
+
+# Use all models including the tiger/EnlightenGAN model
+python wildve.py videos/ clips/ --all-models
 ```
 
 ## Output
@@ -102,14 +113,42 @@ Edit the `DIRECTORY_PATH`, `OUTPUT_DIR`, and `NUM_PROCESSES` variables in the sc
 
 ## GPU / HPC Notes
 
-- Each parallel process (`-j`) loads its own copy of all six models into GPU memory. Reduce `-j` if you encounter out-of-memory errors.
+- Each parallel process (`-j`) loads its own copy of all enabled models into GPU memory. Reduce `-j` or use fewer `--models` if you encounter out-of-memory errors.
 - WildVE will report GPU memory status at startup when running in GPU mode.
 - For SLURM-based HPC clusters, request a GPU node and set `-j` based on available GPU memory.
 - The `--nobar` flag is recommended for non-interactive batch jobs.
 
-## Custom Model
+## Model Weights
 
-The custom YOLOv8 model (`best_enlightengan_and_yolov8.pt`) is trained on imagery enhanced with EnlightenGAN for improved low-light detection. This model file must be present in the working directory.
+Most model weights are downloaded automatically on first run:
+- **MegaDetector V5, V6**: Downloaded automatically by PytorchWildlife
+- **Florence-2**: Downloaded automatically from HuggingFace
+- **CLIP**: Downloaded automatically by OpenCLIP
+
+The **tiger/EnlightenGAN YOLOv8** model weights (`best_enlightengan_and_yolov8.pt`) are downloaded automatically from Google Drive when the tiger model is enabled (via `--all-models` or `--models tiger,...`).
+
+## References & Citations
+
+### MegaDetector V5
+- Beery, S., Morris, D., & Yang, S. (2019). "Efficient Pipeline for Camera Trap Image Review." *arXiv preprint* [arXiv:1907.06772](https://arxiv.org/abs/1907.06772)
+- Microsoft AI for Earth. [CameraTraps](https://github.com/microsoft/CameraTraps)
+
+### MegaDetector V6 (via PytorchWildlife)
+- Hernandez, A., et al. (2024). "PytorchWildlife: A Collaborative Deep Learning Framework for Conservation." *arXiv preprint* [arXiv:2405.12930](https://arxiv.org/abs/2405.12930)
+- GitHub: [microsoft/CameraTraps](https://github.com/microsoft/CameraTraps) / [PytorchWildlife](https://github.com/microsoft/CameraTraps/blob/main/INSTALLATION.md)
+
+### Florence-2
+- Xiao, B., et al. (2024). "Florence-2: Advancing a Unified Representation for a Variety of Vision Tasks." *arXiv preprint* [arXiv:2311.06242](https://arxiv.org/abs/2311.06242)
+- HuggingFace: [microsoft/Florence-2-large](https://huggingface.co/microsoft/Florence-2-large)
+
+### CLIP (ViT-B/32)
+- Radford, A., et al. (2021). "Learning Transferable Visual Models From Natural Language Supervision." *arXiv preprint* [arXiv:2103.00020](https://arxiv.org/abs/2103.00020)
+- GitHub: [openai/CLIP](https://github.com/openai/CLIP), [mlfoundations/open_clip](https://github.com/mlfoundations/open_clip)
+
+### Tiger/EnlightenGAN YOLOv8
+- Jiang, Y., et al. (2021). "EnlightenGAN: Deep Light Enhancement without Paired Supervision." *IEEE Transactions on Image Processing*, 30, 2340-2349. [arXiv:1906.06972](https://arxiv.org/abs/1906.06972)
+- GitHub: [VITA-Group/EnlightenGAN](https://github.com/VITA-Group/EnlightenGAN)
+- Tiger detection pipeline: [Gaurav0502/tiger-detection-using-enlightengan-and-yolo](https://github.com/Gaurav0502/tiger-detection-using-enlightengan-and-yolo)
 
 ## Credits
 

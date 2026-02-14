@@ -28,6 +28,7 @@ dependencies = [
     "einops",
     "Pillow",
     "numpy>=1.26.1",
+    "gdown",
 ]
 
 [project.urls]

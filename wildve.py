@@ -49,8 +49,12 @@ DEFAULT_OUTPUT_DIR	 = "outputs"
 DEFAULT_LOGGING_DIR  	 = "logs"
 
 TIGER_MODEL              = 'best_enlightengan_and_yolov8.pt'
+TIGER_MODEL_GDRIVE_ID    = '1AkV-n2MdyfuZTFvcon8Z4leyVb0i7x63'
 FLORENCE_MODEL           = 'microsoft/Florence-2-large'
 CLIP_MODEL               = 'ViT-B/32'
+
+ALL_MODEL_NAMES = ['md5', 'md6v9', 'md6v10', 'tiger', 'florence', 'clip']
+DEFAULT_MODELS  = ['md5', 'md6v9', 'md6v10', 'florence', 'clip']  # tiger excluded by default
 
 DEFAULT_INTERVAL         = 1.0   # number of seconds between samples
 DEFAULT_PADDING		 = 5.0   # number of seconds of video to include before first detection and after last detection in a clip
@@ -72,6 +76,12 @@ parser.add_argument('-l', '--logging',  type=str,   default=DEFAULT_LOGGING_DIR,
 parser.add_argument('-n', '--nobar',    action='store_true',  default=DEFAULT_NOBAR,     help='Turns off the Progress Bar during processing.  (DEFAULT: Use Progress Bar)')
 parser.add_argument('--allframes', action='store_true', default=False, help='Analyze every frame and output a detailed CSV report, instead of creating clips.')
 
+parser.add_argument('--models', type=str, default=None,
+	help='Comma-separated list of models to use. Options: md5,md6v9,md6v10,tiger,florence,clip. (DEFAULT: md5,md6v9,md6v10,florence,clip)')
+parser.add_argument('--all-models', action='store_true', default=False,
+	help='Use all models including the tiger/EnlightenGAN model.')
+parser.add_argument('--threshold', type=int, default=2,
+	help='Minimum number of models that must agree for a positive detection (DEFAULT: 2)')
 
 group = parser.add_mutually_exclusive_group()
 group.add_argument('-g', '--gpu', action='store_true',  default=True, help='Use GPU if available (DEFAULT)')
@@ -81,6 +91,19 @@ args = parser.parse_args()
 
 os.environ['YOLO_VERBOSE'] = 'False'
 os.environ['TOKENIZERS_PARALLELISM'] = 'true'
+
+# Resolve which models are enabled
+if args.all_models:
+	enabled_models = set(ALL_MODEL_NAMES)
+elif args.models:
+	enabled_models = set(m.strip() for m in args.models.split(','))
+	invalid = enabled_models - set(ALL_MODEL_NAMES)
+	if invalid:
+		print(f"Error: Unknown model(s): {', '.join(sorted(invalid))}")
+		print(f"Valid models: {', '.join(ALL_MODEL_NAMES)}")
+		sys.exit(-1)
+else:
+	enabled_models = set(DEFAULT_MODELS)
 
 if not os.path.exists(args.input):
 	print(f"Error:  Could not find input directory path '{args.input}'", flush=True)
@@ -123,35 +146,55 @@ chunk_idx_g = 0
 most_recent_written_chunk_g = -1
 
 
+def download_tiger_model():
+	"""Download tiger/EnlightenGAN model weights from Google Drive if not present."""
+	if not os.path.exists(TIGER_MODEL):
+		print(f"Tiger model weights not found at '{TIGER_MODEL}'. Downloading from Google Drive...")
+		import gdown
+		gdown.download(id=TIGER_MODEL_GDRIVE_ID, output=TIGER_MODEL, quiet=False)
+		if not os.path.exists(TIGER_MODEL):
+			print("Error: Failed to download tiger model weights.", flush=True)
+			sys.exit(-1)
+		print(f"Tiger model weights downloaded to '{TIGER_MODEL}'.")
+
+
 def load_models(pid):
 	global megadetector5_model_g, megadetector6v9_model_g, megadetector6v10_model_g, tiger_model_g, florence_model_g, florence_processor_g, clip_model_g, clip_processor_g
 
-	print(f"PID={pid}: Loading Megadetector 5 model...")
-	megadetector5_model_g = pw_detection.MegaDetectorV5(device=device, pretrained=True)
+	if 'md5' in enabled_models:
+		print(f"PID={pid}: Loading Megadetector 5 model...")
+		megadetector5_model_g = pw_detection.MegaDetectorV5(device=device, pretrained=True)
 
-	print(f"PID={pid}: Loading Megadetector 6v9 model...")
-	megadetector6v9_model_g = pw_detection.MegaDetectorV6(device=device, version="MDV6-yolov9-e")
+	if 'md6v9' in enabled_models:
+		print(f"PID={pid}: Loading Megadetector 6v9 model...")
+		megadetector6v9_model_g = pw_detection.MegaDetectorV6(device=device, version="MDV6-yolov9-e")
 
-	print(f"PID={pid}: Loading Megadetector 6v10 model...")
-	megadetector6v10_model_g = pw_detection.MegaDetectorV6(device=device, version="MDV6-yolov10-e")
+	if 'md6v10' in enabled_models:
+		print(f"PID={pid}: Loading Megadetector 6v10 model...")
+		megadetector6v10_model_g = pw_detection.MegaDetectorV6(device=device, version="MDV6-yolov10-e")
 
-	print(f"PID={pid}: Loading EnlightenGAN Tiger model...")
-	tiger_model_g = YOLO(TIGER_MODEL)
+	if 'tiger' in enabled_models:
+		download_tiger_model()
+		print(f"PID={pid}: Loading EnlightenGAN Tiger model...")
+		tiger_model_g = YOLO(TIGER_MODEL)
 
-	print(f"PID={pid}: Loading Florence-2 model...")
-	florence_model_g = AutoModelForCausalLM.from_pretrained(FLORENCE_MODEL, trust_remote_code=True).eval()
-	florence_processor_g = AutoProcessor.from_pretrained(FLORENCE_MODEL, trust_remote_code=True)
+	if 'florence' in enabled_models:
+		print(f"PID={pid}: Loading Florence-2 model...")
+		florence_model_g = AutoModelForCausalLM.from_pretrained(FLORENCE_MODEL, trust_remote_code=True).eval()
+		florence_processor_g = AutoProcessor.from_pretrained(FLORENCE_MODEL, trust_remote_code=True)
 
-	print(f"PID={pid}: Loading CLIP model...")
-	clip_model_g, _, clip_processor_g = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai', device=device)
+	if 'clip' in enabled_models:
+		print(f"PID={pid}: Loading CLIP model...")
+		clip_model_g, _, clip_processor_g = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai', device=device)
 
-	print(f"PID={pid}: All models loaded.")
+	print(f"PID={pid}: All enabled models loaded.")
 
 	print(f"PID={pid}: Deploying applicable models to device: {device}")
-	# PytorchWildlife models are already on device from init
-	tiger_model_g.to(device)
-	florence_model_g.to(device)
-	# clip_model is already on device from clip.load()
+	if tiger_model_g is not None:
+		tiger_model_g.to(device)
+	if florence_model_g is not None:
+		florence_model_g.to(device)
+	# PytorchWildlife and CLIP models are already on device from init
 
 	print(f"PID={pid}: Models deployed on device: {device}")
 
@@ -277,57 +320,69 @@ def contains_target_label(data):
 
 
 def ensemble_detection(img, md5_model, md6v9_model, md6v10_model, tig_model, flor_model, flor_processor, cl_model, cl_processor):
+	# Initialize defaults for all models
+	megadetector5_has_animal = False
+	megadetector5_max_confidence = 0.0
+	megadetector6v9_has_animal = False
+	megadetector6v9_max_confidence = 0.0
+	megadetector6v10_has_animal = False
+	megadetector6v10_max_confidence = 0.0
+	tiger_has_tiger = False
+	tiger_max_confidence = 0.0
+	florence_detected_target = False
+	clip_is_tiger_detection = False
+	clip_tiger_confidence = 0.0
+
 	# MegaDetector V5
-	megadetector5_results    = md5_model.single_image_detection(img)
-	megadetector5_detections = megadetector5_results.get('detections', None)
-	_, _, megadetector5_has_animal, megadetector5_max_confidence = parse_megadetector_detections(megadetector5_detections)
+	if 'md5' in enabled_models and md5_model is not None:
+		megadetector5_results    = md5_model.single_image_detection(img)
+		megadetector5_detections = megadetector5_results.get('detections', None)
+		_, _, megadetector5_has_animal, megadetector5_max_confidence = parse_megadetector_detections(megadetector5_detections)
 
 	# MegaDetector V6v9
-	megadetector6v9_results    = md6v9_model.single_image_detection(img)
-	megadetector6v9_detections = megadetector6v9_results.get('detections', None)
-	_, _, megadetector6v9_has_animal, megadetector6v9_max_confidence = parse_megadetector_detections(megadetector6v9_detections)
+	if 'md6v9' in enabled_models and md6v9_model is not None:
+		megadetector6v9_results    = md6v9_model.single_image_detection(img)
+		megadetector6v9_detections = megadetector6v9_results.get('detections', None)
+		_, _, megadetector6v9_has_animal, megadetector6v9_max_confidence = parse_megadetector_detections(megadetector6v9_detections)
 
 	# MegaDetector V6v10
-	megadetector6v10_results    = md6v10_model.single_image_detection(img)
-	megadetector6v10_detections = megadetector6v10_results.get('detections', None)
-	_, _, megadetector6v10_has_animal, megadetector6v10_max_confidence = parse_megadetector_detections(megadetector6v10_detections)
+	if 'md6v10' in enabled_models and md6v10_model is not None:
+		megadetector6v10_results    = md6v10_model.single_image_detection(img)
+		megadetector6v10_detections = megadetector6v10_results.get('detections', None)
+		_, _, megadetector6v10_has_animal, megadetector6v10_max_confidence = parse_megadetector_detections(megadetector6v10_detections)
 
 	# Tiger Model (w/EnlightenGAN) Detection
-	tiger_results = tig_model(img, verbose=False)
-	if isinstance(tiger_results, list):
-		tiger_results = tiger_results[0]
-	tiger_confidences = [box.conf.item() for box in tiger_results.boxes]
-	tiger_has_tiger = any(int(box.cls) == 0 for box in tiger_results.boxes) # Assuming class 0 is tiger
-	tiger_max_confidence = max((box.conf.item() for box in tiger_results.boxes if int(box.cls) == 0), default=0.0)
-
+	if 'tiger' in enabled_models and tig_model is not None:
+		tiger_results = tig_model(img, verbose=False)
+		if isinstance(tiger_results, list):
+			tiger_results = tiger_results[0]
+		tiger_has_tiger = any(int(box.cls) == 0 for box in tiger_results.boxes)
+		tiger_max_confidence = max((box.conf.item() for box in tiger_results.boxes if int(box.cls) == 0), default=0.0)
 
 	# Microsoft Florence-2 Detection
-	florence_image = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)) # Florence expects RGB
-	florence_parsed_answer = florence_task(florence_image, "<OD>", flor_model, flor_processor)
-	florence_detected_target = contains_target_label(florence_parsed_answer)
-
+	if 'florence' in enabled_models and flor_model is not None:
+		florence_image = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+		florence_parsed_answer = florence_task(florence_image, "<OD>", flor_model, flor_processor)
+		florence_detected_target = contains_target_label(florence_parsed_answer)
 
 	# OpenAI CLIP Detection
-	img_pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)) # CLIP expects RGB
-	clip_image_processed = cl_processor(img_pil).unsqueeze(0).to(device)
-	text_descriptions = ["a photo of a tiger in a zoo enclosure", "a photo of a zoo enclosure without a tiger", "photo of an animal", "empty photo"]
-	tokenizer = open_clip.get_tokenizer('ViT-B-32')
-	text_tokens = tokenizer(text_descriptions).to(device)
+	if 'clip' in enabled_models and cl_model is not None:
+		img_pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+		clip_image_processed = cl_processor(img_pil).unsqueeze(0).to(device)
+		text_descriptions = ["a photo of a tiger in a zoo enclosure", "a photo of a zoo enclosure without a tiger", "photo of an animal", "empty photo"]
+		tokenizer = open_clip.get_tokenizer('ViT-B-32')
+		text_tokens = tokenizer(text_descriptions).to(device)
 
-	with torch.no_grad():
-		image_features = cl_model.encode_image(clip_image_processed)
-		text_features = cl_model.encode_text(text_tokens)
+		with torch.no_grad():
+			image_features = cl_model.encode_image(clip_image_processed)
+			text_features = cl_model.encode_text(text_tokens)
 
-	image_features /= image_features.norm(dim=-1, keepdim=True)
-	text_features  /= text_features.norm(dim=-1, keepdim=True)
+		image_features /= image_features.norm(dim=-1, keepdim=True)
+		text_features  /= text_features.norm(dim=-1, keepdim=True)
 
-	similarity = (image_features @ text_features.T).squeeze(0).cpu().numpy()
-	
-	# Simple logic: highest similarity to "tiger" vs "no tiger"
-	# Or, if "tiger" similarity is above a threshold and higher than "empty"
-	clip_is_tiger_detection = similarity[0] > similarity[1] and similarity[0] > similarity[3] + 0.05 # Tiger vs no tiger, and tiger vs empty + margin
-	clip_tiger_confidence = similarity[0] if clip_is_tiger_detection else 0.0
-
+		similarity = (image_features @ text_features.T).squeeze(0).cpu().numpy()
+		clip_is_tiger_detection = similarity[0] > similarity[1] and similarity[0] > similarity[3] + 0.05
+		clip_tiger_confidence = similarity[0] if clip_is_tiger_detection else 0.0
 
 	results = {
 		"megadetector5_detection": megadetector5_has_animal,
@@ -338,11 +393,11 @@ def ensemble_detection(img, md5_model, md6v9_model, md6v10_model, tig_model, flo
 		"megadetector6v10_conf": megadetector6v10_max_confidence,
 		"tiger_detection": tiger_has_tiger,
 		"tiger_conf": tiger_max_confidence,
-		"florence_detection": florence_detected_target, # Boolean
-		"clip_detection": clip_is_tiger_detection, # Boolean based on "tiger" prompt
-		"clip_conf": clip_tiger_confidence, # Confidence for "tiger"
+		"florence_detection": florence_detected_target,
+		"clip_detection": clip_is_tiger_detection,
+		"clip_conf": clip_tiger_confidence,
 	}
-	return results 
+	return results
 
 
 def telemetry_log(log_fd, data):
@@ -412,27 +467,21 @@ def get_video_chunk_clip_mode(invid, interval_sz, pu_lock, log_fd, current_chunk
 		"overall_confidence": 0.0
 	}
 
-	total_models = 5
-	detections = [
-		res["megadetector5_detection"],
-		res["megadetector6v9_detection"],
-		res["megadetector6v10_detection"],
-		res["tiger_detection"],
-		res["florence_detection"],
-		res["clip_detection"]
-	]
-	
-	confidences_for_detected = [
-		res["megadetector5_conf"] if res["megadetector5_detection"] else 0,
-		res["megadetector6v9_conf"] if res["megadetector6v9_detection"] else 0,
-		res["megadetector6v10_conf"] if res["megadetector6v10_detection"] else 0,
-		res["tiger_conf"] if res["tiger_detection"] else 0,
-		1.0 if res["florence_detection"] else 0, # Florence is binary
-		res["clip_conf"] # clip_conf is already 0 if not detected by its logic
-	]
-	
-	detection_count = sum(d for d in detections if d) # Sum of True values
-	res["overall_detection"] = detection_count >= 2 # Arbitrary threshold: at least 2 models agree
+	# Build detection/confidence lists dynamically based on enabled models
+	model_results = {
+		'md5':      (res["megadetector5_detection"],   res["megadetector5_conf"] if res["megadetector5_detection"] else 0),
+		'md6v9':    (res["megadetector6v9_detection"],  res["megadetector6v9_conf"] if res["megadetector6v9_detection"] else 0),
+		'md6v10':   (res["megadetector6v10_detection"], res["megadetector6v10_conf"] if res["megadetector6v10_detection"] else 0),
+		'tiger':    (res["tiger_detection"],            res["tiger_conf"] if res["tiger_detection"] else 0),
+		'florence': (res["florence_detection"],          1.0 if res["florence_detection"] else 0),
+		'clip':     (res["clip_detection"],              res["clip_conf"]),
+	}
+
+	detections = [model_results[m][0] for m in ALL_MODEL_NAMES if m in enabled_models]
+	confidences_for_detected = [model_results[m][1] for m in ALL_MODEL_NAMES if m in enabled_models]
+
+	detection_count = sum(d for d in detections if d)
+	res["overall_detection"] = detection_count >= args.threshold
 	
 	if res["overall_detection"]:
 		valid_confidences = [c for c,d in zip(confidences_for_detected, detections) if d] # Only conf of models that detected
@@ -787,19 +836,33 @@ def process_video_allframes_mode(pid, filename, models_tuple, pu_lock, report_lo
             md6v9_conf = results.get("megadetector6v9_conf", 0.0) if results.get("megadetector6v9_detection") else 0.0
             md6v10_conf = results.get("megadetector6v10_conf", 0.0) if results.get("megadetector6v10_detection") else 0.0
             florence_conf = 1.0 if results.get("florence_detection") else 0.0
-            clip_tiger_conf = results.get("clip_conf", 0.0) # Already specific to tiger
-            tiger_model_conf = results.get("tiger_conf", 0.0) # Already specific to tiger
+            clip_tiger_conf = results.get("clip_conf", 0.0)
+            tiger_model_conf = results.get("tiger_conf", 0.0)
 
-            all_confidences = [md5_conf, md6v9_conf, md6v10_conf, florence_conf, clip_tiger_conf, tiger_model_conf]
-            mean_conf = sum(all_confidences) / len(all_confidences) if all_confidences else 0.0
+            # Only include confidences from enabled models for mean calculation
+            conf_map = {
+                'md5': md5_conf, 'md6v9': md6v9_conf, 'md6v10': md6v10_conf,
+                'florence': florence_conf, 'clip': clip_tiger_conf, 'tiger': tiger_model_conf,
+            }
+            active_confidences = [conf_map[m] for m in ALL_MODEL_NAMES if m in enabled_models]
+            mean_conf = sum(active_confidences) / len(active_confidences) if active_confidences else 0.0
 
             report_data = {
                 "ORIGINAL": os.path.basename(filename), "FRAME": frame_num, "TIMESTAMP": f"{timestamp:.3f}",
-                "megadetectorv5_conf": f"{md5_conf:.4f}", "megadetectorv6v9_conf": f"{md6v9_conf:.4f}",
-		"megadetectorv6v10_conf": f"{md6v10_conf:.4f}", "florence_conf": f"{florence_conf:.4f}", 
-		"clip_conf": f"{clip_tiger_conf:.4f}", "tiger_model_conf": f"{tiger_model_conf:.4f}", 
-		"mean_confidence": f"{mean_conf:.4f}"
             }
+            if 'md5' in enabled_models:
+                report_data["megadetectorv5_conf"] = f"{md5_conf:.4f}"
+            if 'md6v9' in enabled_models:
+                report_data["megadetectorv6v9_conf"] = f"{md6v9_conf:.4f}"
+            if 'md6v10' in enabled_models:
+                report_data["megadetectorv6v10_conf"] = f"{md6v10_conf:.4f}"
+            if 'florence' in enabled_models:
+                report_data["florence_conf"] = f"{florence_conf:.4f}"
+            if 'clip' in enabled_models:
+                report_data["clip_conf"] = f"{clip_tiger_conf:.4f}"
+            if 'tiger' in enabled_models:
+                report_data["tiger_model_conf"] = f"{tiger_model_conf:.4f}"
+            report_data["mean_confidence"] = f"{mean_conf:.4f}"
 
             with report_lock: # Protects CSV writing
                 with open(allframes_report_path, "a", newline='') as rf:
@@ -861,10 +924,14 @@ def main():
 
 		try:
 			with open(report_file_path, "w", newline='') as rf:
-				fieldnames = ["ORIGINAL", "FRAME", "TIMESTAMP", 
-							  "megadetectorv5_conf", "megadetectorv6_conf", 
-							  "florence_conf", "clip_conf", "tiger_model_conf", 
-							  "mean_confidence"]
+				fieldnames = ["ORIGINAL", "FRAME", "TIMESTAMP"]
+				if 'md5' in enabled_models: fieldnames.append("megadetectorv5_conf")
+				if 'md6v9' in enabled_models: fieldnames.append("megadetectorv6v9_conf")
+				if 'md6v10' in enabled_models: fieldnames.append("megadetectorv6v10_conf")
+				if 'florence' in enabled_models: fieldnames.append("florence_conf")
+				if 'clip' in enabled_models: fieldnames.append("clip_conf")
+				if 'tiger' in enabled_models: fieldnames.append("tiger_model_conf")
+				fieldnames.append("mean_confidence")
 				writer = csv.DictWriter(rf, fieldnames=fieldnames)
 				writer.writeheader()
 		except Exception as e:
@@ -898,6 +965,8 @@ def main():
 	print("    CONCURRENT PROCS: ", args.jobs)
 	print("DISABLE PROGRESS BAR: ", args.nobar)
 	print("             USE GPU: ", usegpu, f" (Device: {device})")
+	print("      ENABLED MODELS: ", ", ".join(sorted(enabled_models)))
+	print("  DETECTION THRESHOLD: ", args.threshold)
 	print("         REPORT FILE: ", report_file_path)
 	print("*********************************************\n\n", flush=True)
 
