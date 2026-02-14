@@ -12,5 +12,6 @@ PytorchWildlife
 yolov5>=7.0
 lightning
 omegaconf
+rich
 Pillow
 numpy
