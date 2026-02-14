@@ -6,10 +6,15 @@
   \ \ /\ / / | || | / _` | \ \ / / |  _|
    \ V  V /  | || || (_| |  \ V /  | |___
     \_/\_/   |_||_| \__,_|   \_/   |_____|
+
      W i l d l i f e   V i d e o   E x t r a c t o r
 ```
 
 WildVE scans directories of video files for wildlife using an ensemble of AI models, automatically extracting clips containing detected animals and generating summary reports.
+
+## Architecture & Efficiency
+
+WildVE is designed around the principle that in video-based AI pipelines, the dominant bottleneck is disk I/O and CPU-bound video decoding, not GPU inference. Decoding compressed video frames from disk, demuxing, and converting pixel formats are inherently serial, CPU-intensive operations that dwarf the latency of a single forward pass through a neural network. WildVE exploits this asymmetry by keeping all ensemble models memory-resident on the GPU for the entire duration of processing. Once loaded, model weights persist in GPU VRAM across all frames and all videos in a batch, completely eliminating the overhead of repeated model instantiation, weight deserialization, and host-to-device transfers. Each decoded frame is transferred to the GPU once and then routed through all *k* enabled models in sequence, amortizing the cost of the CPU decode and PCIe transfer across the full ensemble. This architecture means that adding additional models to the ensemble incurs only marginal GPU compute cost per frame, while the per-frame I/O and decode cost remains constant regardless of ensemble size. The result is a system where ensemble breadth comes nearly for free relative to the fixed cost of reading and decoding the video stream.
 
 ## Ensemble Model Approach
 
@@ -150,7 +155,7 @@ The **tiger/EnlightenGAN YOLOv8** model weights (`best_enlightengan_and_yolov8.p
 - GitHub: [VITA-Group/EnlightenGAN](https://github.com/VITA-Group/EnlightenGAN)
 - Tiger detection pipeline: [Gaurav0502/tiger-detection-using-enlightengan-and-yolo](https://github.com/Gaurav0502/tiger-detection-using-enlightengan-and-yolo)
 
-## Credits
+## WildVE Credits
 
 **Luke Sheneman, Ph.D.**
 Director, UI Research Computing & Data Services (RCDS)
