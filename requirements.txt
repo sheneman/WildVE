@@ -1,3 +1,4 @@
+setuptools<70
 torch
 opencv-python
 imageio[ffmpeg]
