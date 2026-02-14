@@ -6,7 +6,7 @@ pandas
 nvidia-ml-py3
 ultralytics
 transformers
-git+https://github.com/openai/CLIP.git
+open_clip_torch
 PytorchWildlife
 Pillow
 numpy

@@ -29,7 +29,7 @@ import torch
 import glob
 import numpy as np
 import imageio
-import clip
+import open_clip
 from ultralytics import YOLO
 from tqdm import tqdm	
 
@@ -125,7 +125,7 @@ def load_models(pid):
 	florence_processor = AutoProcessor.from_pretrained(FLORENCE_MODEL, trust_remote_code=True)
 
 	print(f"PID={pid}: Loading CLIP model...")
-	clip_model, clip_processor = clip.load("ViT-B/32", device=device)
+	clip_model, _, clip_processor = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai', device=device)
 
 	print(f"PID={pid}: All models loaded.")
 
@@ -274,7 +274,8 @@ def ensemble_detection(img, megadetector5_model, megadetector6v9_model, megadete
 	clip_image = clip_processor(img_pil).unsqueeze(0).to(device)
 
 	text_descriptions = ["a photo of a tiger in a zoo enclosure", "a photo of a zoo enclosure without a tiger"]
-	text_tokens = clip.tokenize(text_descriptions).to(device)
+	tokenizer = open_clip.get_tokenizer('ViT-B-32')
+	text_tokens = tokenizer(text_descriptions).to(device)
 
 	with torch.no_grad():
 		image_features = clip_model.encode_image(clip_image)
