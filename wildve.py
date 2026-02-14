@@ -139,7 +139,7 @@ def load_models(pid):
 	tiger_model_g = YOLO(TIGER_MODEL)
 
 	print(f"PID={pid}: Loading Florence-2 model...")
-	florence_model_g = AutoModelForCausalLM.from_pretrained(FLORENCE_MODEL, trust_remote_code=True).eval()
+	florence_model_g = AutoModelForCausalLM.from_pretrained(FLORENCE_MODEL, trust_remote_code=True, attn_implementation="eager").eval()
 	florence_processor_g = AutoProcessor.from_pretrained(FLORENCE_MODEL, trust_remote_code=True)
 
 	print(f"PID={pid}: Loading CLIP model...")
