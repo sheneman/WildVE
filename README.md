@@ -61,6 +61,7 @@ python wildve.py <INPUT_DIR> <OUTPUT_DIR> [options]
 | `-j`, `--jobs` | Number of concurrent parallel processes | `4` |
 | `-l`, `--logging` | Directory for telemetry log files | `logs` |
 | `-n`, `--nobar` | Disable progress bar | `False` |
+| `--allframes` | Analyze every frame and output a detailed per-frame CSV report instead of extracting clips | `False` |
 | `-g`, `--gpu` | Use GPU if available (default) | `True` |
 | `-c`, `--cpu` | Force CPU-only mode | `False` |
 
@@ -78,6 +79,9 @@ python wildve.py videos/ clips/ --cpu
 
 # Disable progress bar (useful for batch/HPC jobs)
 python wildve.py videos/ clips/ --nobar
+
+# Analyze every frame (no clip extraction, detailed CSV report)
+python wildve.py videos/ results/ --allframes
 ```
 
 ## Output
