@@ -1,4 +1,3 @@
-setuptools
 torch
 opencv-python
 imageio[ffmpeg]
@@ -7,7 +6,7 @@ pandas
 nvidia-ml-py3
 ultralytics
 transformers
-openai-clip
+git+https://github.com/openai/CLIP.git
 PytorchWildlife
 Pillow
 numpy
