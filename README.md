@@ -29,11 +29,12 @@ A frame is flagged as a positive detection when **2 or more** models agree, redu
 ## Installation
 
 ```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
 git clone https://github.com/sheneman/wildve.git
 cd wildve
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+uv venv
+source .venv/bin/activate
+uv pip install -r requirements.txt
 ```
 
 **Note:** A CUDA-capable GPU is strongly recommended. The ensemble of six models requires significant GPU memory (16GB+ recommended).
