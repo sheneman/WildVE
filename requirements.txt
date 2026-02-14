@@ -9,5 +9,8 @@ ultralytics
 transformers
 open_clip_torch
 PytorchWildlife
+yolov5>=7.0
+lightning
+omegaconf
 Pillow
 numpy
