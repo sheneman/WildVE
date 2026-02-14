@@ -1,0 +1,12 @@
+torch
+opencv-python
+imageio[ffmpeg]
+tqdm
+pandas
+nvidia-ml-py3
+ultralytics
+transformers
+openai-clip
+PytorchWildlife
+Pillow
+numpy
