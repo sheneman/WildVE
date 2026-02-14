@@ -9,8 +9,11 @@
 
      W i l d l i f e   V i d e o   E x t r a c t o r
 ```
+*(formerly TigerVid)*
 
 WildVE scans directories of video files for wildlife using an ensemble of AI models, automatically extracting clips containing detected animals and generating summary reports.
+
+Camera traps and fixed video installations generate enormous volumes of footage in wildlife research, but the vast majority of that footage contains no animals at all. Manually reviewing hundreds or thousands of hours of video is one of the most persistent bottlenecks in field ecology, consuming researcher time that would be far better spent on analysis and conservation action. WildVE addresses this directly by automating the detection and extraction of wildlife events from raw video. Whether deployed for camera trap surveys, zoo behavioral monitoring, biodiversity assessments, or broad-scale landscape ecology studies, WildVE allows researchers to move from raw footage to curated, analysis-ready clips without manual screening. By dramatically reducing the labor required to process video data, WildVE enables conservation biologists and ecologists to scale their monitoring efforts to match the scope of the ecosystems they study.
 
 ## Architecture & Efficiency
 
