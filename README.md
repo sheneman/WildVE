@@ -105,6 +105,21 @@ Edit the `DIRECTORY_PATH`, `OUTPUT_DIR`, and `NUM_PROCESSES` variables in the sc
 
 The custom YOLOv8 model (`best_enlightengan_and_yolov8.pt`) is trained on imagery enhanced with EnlightenGAN for improved low-light detection. This model file must be present in the working directory.
 
+## Credits
+
+**Luke Sheneman, Ph.D.**
+Director, UI Research Computing & Data Services (RCDS)
+UI Institute for Interdisciplinary Data Sciences (IIDS)
+https://hpc.uidaho.edu
+sheneman@uidaho.edu
+GitHub: [sheneman](https://github.com/sheneman)
+
+**Amy Zuckerwise**
+Ph.D. Candidate in the Conservation & Coexistence Group
+University of Michigan School for Environment and Sustainability
+ameliaz@umich.edu
+GitHub: [azuckerwise](https://github.com/azuckerwise)
+
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.
