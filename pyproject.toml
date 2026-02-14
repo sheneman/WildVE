@@ -20,7 +20,7 @@ dependencies = [
     "ultralytics",
     "transformers",
     "open_clip_torch",
-    "PytorchWildlife",
+    "PytorchWildlife>=1.2",
     "yolov5>=7.0",
     "lightning",
     "omegaconf",
@@ -32,3 +32,9 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/sheneman/wildve"
 Repository = "https://github.com/sheneman/wildve"
+
+[tool.uv]
+override-dependencies = [
+    "numpy>=1.26.1",
+    "yolov5>=7.0",
+]
