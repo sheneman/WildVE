@@ -18,7 +18,7 @@ dependencies = [
     "pandas",
     "nvidia-ml-py3",
     "ultralytics",
-    "transformers",
+    "transformers>=4.44,<4.46",
     "open_clip_torch",
     "PytorchWildlife>=1.2",
     "yolov5>=7.0",
