@@ -25,6 +25,7 @@ dependencies = [
     "lightning",
     "omegaconf",
     "rich",
+    "einops",
     "Pillow",
     "numpy>=1.26.1",
 ]
